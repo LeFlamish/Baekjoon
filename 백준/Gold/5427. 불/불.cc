@@ -1,111 +1,92 @@
 #include <iostream>
 #include <queue>
 #include <cstring>
-
 using namespace std;
+#define FOR(i, N) for(int i = 0; i < N; i++)
 
-const int MAX = 1000;
-char building[MAX][MAX];
-int fire[MAX][MAX];
-int dist[MAX][MAX];
+struct State {
+	int x, y;
+};
 
-int dx[] = {-1, 1, 0, 0};
-int dy[] = {0, 0, -1, 1};
+int T, W, H;
+string board[1000];
+int dist[1000][1000];
+int dx[] = { 1, 0, -1, 0 };
+int dy[] = { 0, 1, 0, -1 };
+queue<State> fire;
+queue<State> human;
 
-void bfs_fire(int H, int W) {
-    queue<pair<int, int>> q;
-
-    for (int i = 0; i < H; ++i) {
-        for (int j = 0; j < W; ++j) {
-            if (building[i][j] == '*') {
-                q.push({i, j});
-                fire[i][j] = 0;
-            }
-        }
-    }
-
-    while (!q.empty()) {
-        int x = q.front().first;
-        int y = q.front().second;
-        q.pop();
-
-        for (int dir = 0; dir < 4; ++dir) {
-            int nx = x + dx[dir];
-            int ny = y + dy[dir];
-
-            if (nx < 0 || nx >= H || ny < 0 || ny >= W) continue;
-            if (building[nx][ny] == '#' || fire[nx][ny] != -1) continue;
-
-            fire[nx][ny] = fire[x][y] + 1;
-            q.push({nx, ny});
-        }
-    }
+void init() {
+	memset(dist, 0, sizeof(dist));
+	while (!fire.empty()) fire.pop();
+	while (!human.empty()) human.pop();
+	cin >> W >> H;
+	FOR(y, H) {
+		cin >> board[y];
+		FOR(x, W) {
+			if (board[y][x] == '*') fire.push({ x, y });
+			else if (board[y][x] == '@') {
+				human.push({ x, y });
+				dist[y][x] = 1;
+			}
+		}
+	}
 }
 
-int bfs_escape(int H, int W, int start_x, int start_y) {
-    queue<pair<int, int>> q;
-    q.push({start_x, start_y});
-    dist[start_x][start_y] = 0;
+inline bool OOB(int x, int y) {
+	return x < 0 || x >= W || y < 0 || y >= H;
+}
 
-    while (!q.empty()) {
-        int x = q.front().first;
-        int y = q.front().second;
-        q.pop();
+void moveFire() {
+	int size = fire.size();
+	FOR(i, size) {
+		State cur = fire.front(); fire.pop();
+		FOR(dir, 4) {
+			int nx = cur.x + dx[dir];
+			int ny = cur.y + dy[dir];
+			if (OOB(nx, ny)) continue;
+			if (board[ny][nx] == '#' || board[ny][nx] == '*') continue;
+			board[ny][nx] = '*';
+			fire.push({ nx, ny });
+		}
+	}
+}
 
-        if (x == 0 || x == H - 1 || y == 0 || y == W - 1) {
-            return dist[x][y] + 1;
-        }
+int moveHuman() {
+	int size = human.size();
+	FOR(i, size) {
+		State cur = human.front(); human.pop();
+		FOR(dir, 4) {
+			int nx = cur.x + dx[dir];
+			int ny = cur.y + dy[dir];
+			if (OOB(nx, ny)) return dist[cur.y][cur.x];
+			if (dist[ny][nx] || board[ny][nx] == '#' || board[ny][nx] == '*') continue;
+			dist[ny][nx] = dist[cur.y][cur.x] + 1;
+			human.push({ nx, ny });
+		}
+	}
+	return 0;
+}
 
-        for (int dir = 0; dir < 4; ++dir) {
-            int nx = x + dx[dir];
-            int ny = y + dy[dir];
-
-            if (nx < 0 || nx >= H || ny < 0 || ny >= W) continue;
-            if (building[nx][ny] == '#' || dist[nx][ny] != -1) continue;
-            if (fire[nx][ny] != -1 && dist[x][y] + 1 >= fire[nx][ny]) continue;
-
-            dist[nx][ny] = dist[x][y] + 1;
-            q.push({nx, ny});
-        }
-    }
-
-    return -1; // 탈출 불가능한 경우
+void solve() {
+	while (!human.empty()) {
+		moveFire();
+		int ret = moveHuman();
+		if (ret) {
+			cout << ret << '\n';
+			return;
+		}
+	}
+	cout << "IMPOSSIBLE\n";
+	return;
 }
 
 int main() {
-    ios_base::sync_with_stdio(false);
-    cin.tie(NULL);
-    cout.tie(NULL);
-
-    int T;
-    cin >> T;
-
-    while (T--) {
-        int W, H;
-        cin >> W >> H;
-
-        memset(fire, -1, sizeof(fire));
-        memset(dist, -1, sizeof(dist));
-
-        int start_x, start_y;
-        for (int i = 0; i < H; ++i) {
-            for (int j = 0; j < W; ++j) {
-                cin >> building[i][j];
-                if (building[i][j] == '@') {
-                    start_x = i;
-                    start_y = j;
-                }
-            }
-        }
-
-        bfs_fire(H, W);
-        int result = bfs_escape(H, W, start_x, start_y);
-        if (result == -1) {
-            cout << "IMPOSSIBLE\n";
-        } else {
-            cout << result << "\n";
-        }
-    }
-
-    return 0;
+	cin.tie(0)->sync_with_stdio(0);
+	cin >> T;
+	FOR(t, T) {
+		init();
+		solve();
+	}
+	return 0;
 }
